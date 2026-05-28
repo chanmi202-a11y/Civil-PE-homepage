@@ -2,8 +2,10 @@ const router  = require('express').Router();
 const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
-const { getDB }                         = require('../database');
-const { auth, adminOnly, approvedOnly } = require('../middleware/auth');
+const { all, get, run }                         = require('../db');
+const { auth, adminOnly, approvedOnly }         = require('../middleware/auth');
+
+const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const uploadDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -21,13 +23,9 @@ const upload = multer({
   limits: { fileSize: (Number(process.env.MAX_FILE_MB) || 10) * 1024 * 1024 },
 });
 
-// ── Answers ──
-
-// GET /api/community  (공개)
-router.get('/', (req, res) => {
+router.get('/', wrap(async (req, res) => {
   const { qId, limit = 50 } = req.query;
-  const db     = getDB();
-  let sql      = `
+  let sql = `
     SELECT ca.*, u.nickname, u.role AS user_role,
            (SELECT COUNT(*) FROM comments c WHERE c.answer_id = ca.id) AS comment_count,
            (SELECT COUNT(*) FROM attachments a WHERE a.answer_id = ca.id) AS attachment_count
@@ -35,146 +33,134 @@ router.get('/', (req, res) => {
     JOIN users u ON u.id = ca.user_id
   `;
   const params = [];
-  if (qId) { sql += ' WHERE ca.question_id = ?'; params.push(qId); }
-  sql += ' ORDER BY ca.created_at DESC LIMIT ?';
+  let p = 1;
+  if (qId) { sql += ` WHERE ca.question_id = $${p++}`; params.push(qId); }
+  sql += ` ORDER BY ca.created_at DESC LIMIT $${p}`;
   params.push(Number(limit));
-  res.json(db.prepare(sql).all(...params));
-});
+  res.json(await all(sql, params));
+}));
 
-// GET /api/community/:id
-router.get('/:id', (req, res) => {
-  const db  = getDB();
-  const row = db.prepare(`
+router.get('/:id', wrap(async (req, res) => {
+  const row = await get(`
     SELECT ca.*, u.nickname, u.role AS user_role
     FROM community_answers ca JOIN users u ON u.id = ca.user_id
-    WHERE ca.id = ?
-  `).get(req.params.id);
+    WHERE ca.id = $1
+  `, [req.params.id]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
 
-  const comments = db.prepare(`
+  const comments = await all(`
     SELECT c.*, u.nickname FROM comments c JOIN users u ON u.id = c.user_id
-    WHERE c.answer_id = ? ORDER BY c.created_at ASC
-  `).all(row.id);
+    WHERE c.answer_id = $1 ORDER BY c.created_at ASC
+  `, [row.id]);
 
-  const attachments = db.prepare(
-    'SELECT * FROM attachments WHERE answer_id = ?'
-  ).all(row.id);
+  const attachments = await all('SELECT * FROM attachments WHERE answer_id = $1', [row.id]);
 
   res.json({ ...row, comments, attachments });
-});
+}));
 
-// POST /api/community  (승인 회원)
-router.post('/', auth, approvedOnly, upload.array('files', 5), (req, res) => {
+router.post('/', auth, approvedOnly, upload.array('files', 5), wrap(async (req, res) => {
   const { question_id, title, content } = req.body;
   if (!question_id || !title || !content)
     return res.status(400).json({ error: '필수 항목을 입력해주세요.' });
 
-  const db = getDB();
-  const r  = db.prepare(`
-    INSERT INTO community_answers (question_id, user_id, title, content)
-    VALUES (?, ?, ?, ?)
-  `).run(question_id, req.user.id, title, content);
+  const r = await run(
+    'INSERT INTO community_answers (question_id, user_id, title, content) VALUES ($1, $2, $3, $4) RETURNING id',
+    [question_id, req.user.id, title, content]
+  );
 
   if (req.files?.length) {
-    const ins = db.prepare(
-      'INSERT INTO attachments (answer_id, filename, original_name, size) VALUES (?,?,?,?)'
-    );
-    req.files.forEach(f => ins.run(r.lastInsertRowid, f.filename, f.originalname, f.size));
+    for (const f of req.files) {
+      await run(
+        'INSERT INTO attachments (answer_id, filename, original_name, size) VALUES ($1,$2,$3,$4)',
+        [r.id, f.filename, f.originalname, f.size]
+      );
+    }
   }
-  res.json({ id: r.lastInsertRowid, message: '답안이 등록되었습니다.' });
-});
+  res.json({ id: r.id, message: '답안이 등록되었습니다.' });
+}));
 
-// PUT /api/community/:id  (본인 또는 관리자)
-router.put('/:id', auth, approvedOnly, (req, res) => {
-  const db  = getDB();
-  const row = db.prepare('SELECT * FROM community_answers WHERE id=?').get(req.params.id);
+router.put('/:id', auth, approvedOnly, wrap(async (req, res) => {
+  const row = await get('SELECT * FROM community_answers WHERE id=$1', [req.params.id]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
   if (row.user_id !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ error: '수정 권한이 없습니다.' });
 
   const { title, content } = req.body;
-  db.prepare('UPDATE community_answers SET title=?, content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(title, content, req.params.id);
+  await run(
+    'UPDATE community_answers SET title=$1, content=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3',
+    [title, content, req.params.id]
+  );
   res.json({ message: '수정되었습니다.' });
-});
+}));
 
-// DELETE /api/community/:id  (본인 또는 관리자)
-router.delete('/:id', auth, (req, res) => {
-  const db  = getDB();
-  const row = db.prepare('SELECT * FROM community_answers WHERE id=?').get(req.params.id);
+router.delete('/:id', auth, wrap(async (req, res) => {
+  const row = await get('SELECT * FROM community_answers WHERE id=$1', [req.params.id]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
   if (row.user_id !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ error: '삭제 권한이 없습니다.' });
-  db.prepare('DELETE FROM community_answers WHERE id=?').run(req.params.id);
+  await run('DELETE FROM community_answers WHERE id=$1', [req.params.id]);
   res.json({ message: '삭제되었습니다.' });
-});
+}));
 
-// POST /api/community/:id/verify  (관리자 — 우수 답안 선정)
-router.post('/:id/verify', auth, adminOnly, (req, res) => {
-  const db  = getDB();
-  const row = db.prepare('SELECT verified FROM community_answers WHERE id=?').get(req.params.id);
+router.post('/:id/verify', auth, adminOnly, wrap(async (req, res) => {
+  const row = await get('SELECT verified FROM community_answers WHERE id=$1', [req.params.id]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
-  db.prepare('UPDATE community_answers SET verified=? WHERE id=?').run(row.verified ? 0 : 1, req.params.id);
+  await run('UPDATE community_answers SET verified=$1 WHERE id=$2', [row.verified ? 0 : 1, req.params.id]);
   res.json({ message: row.verified ? '선정 취소되었습니다.' : '우수 답안으로 선정되었습니다.' });
-});
+}));
 
-// POST /api/community/:id/like  (승인 회원)
-router.post('/:id/like', auth, approvedOnly, (req, res) => {
-  const db  = getDB();
-  const row = db.prepare('SELECT id FROM community_answers WHERE id=?').get(req.params.id);
+router.post('/:id/like', auth, approvedOnly, wrap(async (req, res) => {
+  const row = await get('SELECT id FROM community_answers WHERE id=$1', [req.params.id]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
 
-  const already = db.prepare('SELECT 1 FROM answer_likes WHERE answer_id=? AND user_id=?')
-                    .get(req.params.id, req.user.id);
+  const already = await get(
+    'SELECT 1 FROM answer_likes WHERE answer_id=$1 AND user_id=$2',
+    [req.params.id, req.user.id]
+  );
   if (already) {
-    db.prepare('DELETE FROM answer_likes WHERE answer_id=? AND user_id=?').run(req.params.id, req.user.id);
-    db.prepare('UPDATE community_answers SET likes=MAX(0,likes-1) WHERE id=?').run(req.params.id);
+    await run('DELETE FROM answer_likes WHERE answer_id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    await run('UPDATE community_answers SET likes=GREATEST(0,likes-1) WHERE id=$1', [req.params.id]);
     return res.json({ liked: false });
   }
-  db.prepare('INSERT INTO answer_likes (answer_id, user_id) VALUES (?,?)').run(req.params.id, req.user.id);
-  db.prepare('UPDATE community_answers SET likes=likes+1 WHERE id=?').run(req.params.id);
+  await run('INSERT INTO answer_likes (answer_id, user_id) VALUES ($1,$2)', [req.params.id, req.user.id]);
+  await run('UPDATE community_answers SET likes=likes+1 WHERE id=$1', [req.params.id]);
   res.json({ liked: true });
-});
+}));
 
-// ── Comments ──
-
-// GET /api/community/:id/comments
-router.get('/:id/comments', (req, res) => {
-  const rows = getDB().prepare(`
+router.get('/:id/comments', wrap(async (req, res) => {
+  res.json(await all(`
     SELECT c.*, u.nickname FROM comments c JOIN users u ON u.id = c.user_id
-    WHERE c.answer_id = ? ORDER BY c.created_at ASC
-  `).all(req.params.id);
-  res.json(rows);
-});
+    WHERE c.answer_id = $1 ORDER BY c.created_at ASC
+  `, [req.params.id]));
+}));
 
-// POST /api/community/:id/comments  (승인 회원)
-router.post('/:id/comments', auth, approvedOnly, upload.array('files', 3), (req, res) => {
+router.post('/:id/comments', auth, approvedOnly, upload.array('files', 3), wrap(async (req, res) => {
   const { content } = req.body;
   if (!content) return res.status(400).json({ error: '댓글 내용을 입력해주세요.' });
 
-  const db = getDB();
-  const r  = db.prepare(
-    'INSERT INTO comments (answer_id, user_id, content) VALUES (?,?,?)'
-  ).run(req.params.id, req.user.id, content);
+  const r = await run(
+    'INSERT INTO comments (answer_id, user_id, content) VALUES ($1,$2,$3) RETURNING id',
+    [req.params.id, req.user.id, content]
+  );
 
   if (req.files?.length) {
-    const ins = db.prepare(
-      'INSERT INTO attachments (comment_id, filename, original_name, size) VALUES (?,?,?,?)'
-    );
-    req.files.forEach(f => ins.run(r.lastInsertRowid, f.filename, f.originalname, f.size));
+    for (const f of req.files) {
+      await run(
+        'INSERT INTO attachments (comment_id, filename, original_name, size) VALUES ($1,$2,$3,$4)',
+        [r.id, f.filename, f.originalname, f.size]
+      );
+    }
   }
-  res.json({ id: r.lastInsertRowid, message: '댓글이 등록되었습니다.' });
-});
+  res.json({ id: r.id, message: '댓글이 등록되었습니다.' });
+}));
 
-// DELETE /api/community/:id/comments/:cid
-router.delete('/:id/comments/:cid', auth, (req, res) => {
-  const db  = getDB();
-  const row = db.prepare('SELECT * FROM comments WHERE id=?').get(req.params.cid);
+router.delete('/:id/comments/:cid', auth, wrap(async (req, res) => {
+  const row = await get('SELECT * FROM comments WHERE id=$1', [req.params.cid]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
   if (row.user_id !== req.user.id && req.user.role !== 'admin')
     return res.status(403).json({ error: '삭제 권한이 없습니다.' });
-  db.prepare('DELETE FROM comments WHERE id=?').run(req.params.cid);
+  await run('DELETE FROM comments WHERE id=$1', [req.params.cid]);
   res.json({ message: '삭제되었습니다.' });
-});
+}));
 
 module.exports = router;

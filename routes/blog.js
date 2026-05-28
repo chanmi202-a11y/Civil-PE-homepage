@@ -1,75 +1,70 @@
 const router = require('express').Router();
-const { getDB }             = require('../database');
-const { auth, adminOnly }   = require('../middleware/auth');
+const { all, get, run }         = require('../db');
+const { auth, adminOnly }       = require('../middleware/auth');
 
-// GET /api/blog  (공개 — published only)
-router.get('/', (req, res) => {
+const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+router.get('/', wrap(async (req, res) => {
   const { category, limit = 50 } = req.query;
-  const db     = getDB();
-  let sql      = 'SELECT id,category,emoji,thumb_class,title,excerpt,published,sample,created_at FROM blog_posts WHERE published=1';
+  let sql = 'SELECT id,category,emoji,thumb_class,title,excerpt,published,sample,created_at FROM blog_posts WHERE published=1';
   const params = [];
-  if (category && category !== 'all') { sql += ' AND category=?'; params.push(category); }
-  sql += ' ORDER BY id DESC LIMIT ?';
+  let p = 1;
+  if (category && category !== 'all') { sql += ` AND category=$${p++}`; params.push(category); }
+  sql += ` ORDER BY id DESC LIMIT $${p}`;
   params.push(Number(limit));
-  res.json(db.prepare(sql).all(...params));
-});
+  res.json(await all(sql, params));
+}));
 
-// GET /api/blog/drafts  (관리자)
-router.get('/drafts', auth, adminOnly, (req, res) => {
-  res.json(getDB().prepare('SELECT id,category,emoji,thumb_class,title,excerpt,published,sample,created_at FROM blog_posts ORDER BY id DESC').all());
-});
+router.get('/drafts', auth, adminOnly, wrap(async (req, res) => {
+  res.json(await all('SELECT id,category,emoji,thumb_class,title,excerpt,published,sample,created_at FROM blog_posts ORDER BY id DESC'));
+}));
 
-// GET /api/blog/:id  (본문 포함)
-router.get('/:id', (req, res) => {
-  const row = getDB().prepare('SELECT * FROM blog_posts WHERE id=?').get(req.params.id);
-  if (!row || !row.published) return res.status(404).json({ error: '게시물을 찾을 수 없습니다.' });
-  res.json(row);
-});
-
-// GET /api/blog/:id/preview  (관리자 — 미발행도 조회)
-router.get('/:id/preview', auth, adminOnly, (req, res) => {
-  const row = getDB().prepare('SELECT * FROM blog_posts WHERE id=?').get(req.params.id);
+router.get('/:id/preview', auth, adminOnly, wrap(async (req, res) => {
+  const row = await get('SELECT * FROM blog_posts WHERE id=$1', [req.params.id]);
   if (!row) return res.status(404).json({ error: '없습니다.' });
   res.json(row);
-});
+}));
 
-// POST /api/blog  (관리자만)
-router.post('/', auth, adminOnly, (req, res) => {
+router.get('/:id', wrap(async (req, res) => {
+  const row = await get('SELECT * FROM blog_posts WHERE id=$1', [req.params.id]);
+  if (!row || !row.published) return res.status(404).json({ error: '게시물을 찾을 수 없습니다.' });
+  res.json(row);
+}));
+
+router.post('/', auth, adminOnly, wrap(async (req, res) => {
   const { category, emoji = '📖', thumb_class = 'c1', title, excerpt, content = '' } = req.body;
   if (!category || !title || !excerpt) return res.status(400).json({ error: '필수 항목을 입력해주세요.' });
 
-  const r = getDB().prepare(`
-    INSERT INTO blog_posts (category,emoji,thumb_class,title,excerpt,content,published,sample)
-    VALUES (?,?,?,?,?,?,0,0)
-  `).run(category, emoji, thumb_class, title, excerpt, content);
-  res.json({ id: r.lastInsertRowid, message: '초안으로 저장되었습니다.' });
-});
+  const r = await run(
+    `INSERT INTO blog_posts (category,emoji,thumb_class,title,excerpt,content,published,sample)
+     VALUES ($1,$2,$3,$4,$5,$6,0,0) RETURNING id`,
+    [category, emoji, thumb_class, title, excerpt, content]
+  );
+  res.json({ id: r.id, message: '초안으로 저장되었습니다.' });
+}));
 
-// PUT /api/blog/:id  (관리자만)
-router.put('/:id', auth, adminOnly, (req, res) => {
+router.put('/:id', auth, adminOnly, wrap(async (req, res) => {
   const { category, emoji, thumb_class, title, excerpt, content } = req.body;
-  getDB().prepare(`
-    UPDATE blog_posts SET category=?,emoji=?,thumb_class=?,title=?,excerpt=?,content=?,updated_at=CURRENT_TIMESTAMP WHERE id=?
-  `).run(category, emoji, thumb_class, title, excerpt, content, req.params.id);
+  await run(
+    `UPDATE blog_posts SET category=$1,emoji=$2,thumb_class=$3,title=$4,excerpt=$5,content=$6,updated_at=CURRENT_TIMESTAMP WHERE id=$7`,
+    [category, emoji, thumb_class, title, excerpt, content, req.params.id]
+  );
   res.json({ message: '수정되었습니다.' });
-});
+}));
 
-// POST /api/blog/:id/publish
-router.post('/:id/publish', auth, adminOnly, (req, res) => {
-  getDB().prepare('UPDATE blog_posts SET published=1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(req.params.id);
+router.post('/:id/publish', auth, adminOnly, wrap(async (req, res) => {
+  await run('UPDATE blog_posts SET published=1,updated_at=CURRENT_TIMESTAMP WHERE id=$1', [req.params.id]);
   res.json({ message: '발행되었습니다.' });
-});
+}));
 
-// POST /api/blog/:id/unpublish
-router.post('/:id/unpublish', auth, adminOnly, (req, res) => {
-  getDB().prepare('UPDATE blog_posts SET published=0,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(req.params.id);
+router.post('/:id/unpublish', auth, adminOnly, wrap(async (req, res) => {
+  await run('UPDATE blog_posts SET published=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1', [req.params.id]);
   res.json({ message: '발행이 취소되었습니다.' });
-});
+}));
 
-// DELETE /api/blog/:id
-router.delete('/:id', auth, adminOnly, (req, res) => {
-  getDB().prepare('DELETE FROM blog_posts WHERE id=?').run(req.params.id);
+router.delete('/:id', auth, adminOnly, wrap(async (req, res) => {
+  await run('DELETE FROM blog_posts WHERE id=$1', [req.params.id]);
   res.json({ message: '삭제되었습니다.' });
-});
+}));
 
 module.exports = router;

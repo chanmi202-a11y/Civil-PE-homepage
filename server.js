@@ -26,6 +26,11 @@ app.get('*', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 );
 
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+});
+
 // ── SSL 인증서 (자동 생성 & 재사용) ──
 function getCerts() {
   const dir     = path.join(__dirname, 'certs');
