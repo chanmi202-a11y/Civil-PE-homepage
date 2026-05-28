@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>토목PE 스터디 — 토목시공기술사 합격의 지름길</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="/" class="nav-logo">
+    토목<span class="accent">PE</span> 스터디
+  </a>
+  <ul class="nav-links">
+    <li><a href="/">홈</a></li>
+    <li><a href="/questions.html">기출/예상문제</a></li>
+    <li><a href="/community.html">커뮤니티</a></li>
+    <li><a href="/blog.html">이론 블로그</a></li>
+    <li class="admin-only hidden"><a href="/admin.html" class="nav-admin-link">⚙ 관리자</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="userArea" class="nav-user hidden">
+      <div class="user-chip">
+        <div class="user-avatar">나</div>
+        <span id="userName"></span>
+      </div>
+      <button id="logoutBtn" class="btn btn-secondary btn-sm">로그아웃</button>
+    </div>
+    <a href="/login.html" id="loginBtn" class="btn btn-secondary btn-sm">로그인</a>
+    <a href="/login.html#signup" id="signupBtn" class="btn btn-primary btn-sm">회원가입</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">✦ 매일 3문제 · 이론 블로그 · 스터디 커뮤니티</div>
+    <h1>토목시공기술사<br><em>합격의 지름길</em></h1>
+    <p>매일 엄선된 예상문제와 체계적인 이론 정리로<br>기술사 시험을 준비하세요.</p>
+    <div class="hero-cta">
+      <a href="/questions.html" class="btn btn-primary btn-xl">오늘의 문제 풀기 →</a>
+      <a href="/blog.html" class="btn btn-secondary btn-xl">이론 공부하기</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num" id="statQ">-</div><div class="lbl">누적 문제 수</div></div>
+      <div class="hero-stat"><div class="num" id="statU">-</div><div class="lbl">스터디 회원</div></div>
+      <div class="hero-stat"><div class="num" id="statB">-</div><div class="lbl">이론 포스트</div></div>
+    </div>
+  </div>
+</section>
+
+<main class="container">
+  <section class="section">
+    <div class="today-banner">
+      <div>
+        <h2>📋 오늘의 예상문제</h2>
+        <p>용어설명(10점) + 심화문제(25점) 구성 — 매일 오전 6시 업로드</p>
+      </div>
+      <div class="today-date-box">
+        <div class="day" id="todayDay">--</div>
+        <div class="ymd" id="todayYmd">----년 --월</div>
+      </div>
+    </div>
+    <div id="todayGrid" class="q-grid">
+      <div class="empty"><div class="icon">⏳</div><p>문제를 불러오는 중...</p></div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">최신 이론 블로그</h2>
+      <a href="/blog.html" class="view-all">전체 보기 →</a>
+    </div>
+    <div id="blogGrid" class="blog-grid">
+      <div class="empty" style="grid-column:1/-1"><div class="icon">⏳</div><p>불러오는 중...</p></div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">커뮤니티 최근 활동</h2>
+      <a href="/community.html" class="view-all">전체 보기 →</a>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:1.2rem;">
+      💡 회원 가입 후 관리자 승인을 받으면 답안 업로드와 댓글 작성이 가능합니다.
+    </div>
+    <div id="commList" class="comm-list">
+      <div class="empty"><div class="icon">⏳</div><p>불러오는 중...</p></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="name">토목<span>PE</span> 스터디</div>
+        <p>토목시공기술사를 준비하는 모든 수험생을 위한 문제 풀이 & 이론 정리 플랫폼</p>
+      </div>
+      <div class="footer-links">
+        <h4>메뉴</h4>
+        <ul>
+          <li><a href="/questions.html">기출/예상문제</a></li>
+          <li><a href="/community.html">커뮤니티</a></li>
+          <li><a href="/blog.html">이론 블로그</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>계정</h4>
+        <ul>
+          <li><a href="/login.html">로그인</a></li>
+          <li><a href="/login.html#signup">회원가입</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2026 토목PE 스터디. 모든 문제 및 자료의 저작권은 해당 운영자에게 있습니다.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+<script>
+const now = new Date();
+document.getElementById('todayDay').textContent = now.getDate() + '일';
+document.getElementById('todayYmd').textContent = `${now.getFullYear()}년 ${now.getMonth()+1}월`;
+
+async function load() {
+  const todayStr = now.toISOString().slice(0,10);
+
+  // stats
+  try {
+    const [qs, bs, us] = await Promise.all([
+      API.get('/questions?limit=999', false),
+      API.get('/blog?limit=999', false),
+      API.get('/admin/stats').catch(() => null),
+    ]);
+    document.getElementById('statQ').textContent = qs.length + '+';
+    document.getElementById('statB').textContent = bs.length + '+';
+    if (us) document.getElementById('statU').textContent = us.users.total + '+';
+  } catch {}
+
+  // Today's questions
+  try {
+    let qs = await API.get(`/questions?date=today`, false);
+    if (!qs.length) qs = await API.get('/questions?limit=3', false);
+    qs = qs.slice(0, 3);
+    document.getElementById('todayGrid').innerHTML = qs.length
+      ? qs.map(q => qCard(q)).join('')
+      : '<div class="empty" style="grid-column:1/-1"><div class="icon">📭</div><p>오늘의 문제가 아직 없습니다.</p></div>';
+  } catch { document.getElementById('todayGrid').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="icon">⚠️</div><p>불러오기 실패</p></div>'; }
+
+  // Blog
+  try {
+    const bs = await API.get('/blog?limit=3', false);
+    document.getElementById('blogGrid').innerHTML = bs.length
+      ? bs.map(blogCard).join('')
+      : '<div class="empty" style="grid-column:1/-1"><div class="icon">📭</div><p>등록된 포스트가 없습니다.</p></div>';
+  } catch {}
+
+  // Community
+  try {
+    const cs = await API.get('/community?limit=3', false);
+    document.getElementById('commList').innerHTML = cs.length
+      ? cs.map(commCard).join('')
+      : '<div class="empty"><div class="icon">📭</div><p>등록된 답안이 없습니다.</p></div>';
+  } catch {}
+}
+
+function qCard(q) {
+  const isNew  = q.publish_date === now.toISOString().slice(0,10);
+  const sample = q.sample ? '<span class="badge badge-sample">(예)</span>' : '';
+  return `
+  <article class="q-card ${q.type}" onclick="location.href='/questions.html#q${q.id}'" style="cursor:pointer">
+    <div class="q-head">
+      <div class="q-badges">
+        <span class="badge ${q.type==='term'?'badge-term':'badge-adv'}">${q.type==='term'?'용어설명':'심화문제'}</span>
+        ${isNew?'<span class="badge badge-new">NEW</span>':''}
+        ${sample}
+      </div>
+      <span class="q-date">${fmtDate(q.publish_date||q.created_at)}</span>
+    </div>
+    <div class="q-body">
+      <div class="q-text">${q.question}</div>
+      <div class="q-foot">
+        <span class="q-score">${q.score}점</span>
+        <div class="q-stats">
+          <span class="q-stat">💬 ${q.answer_count||0}</span>
+          <span class="q-stat">👁 -</span>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+
+function blogCard(p) {
+  return `
+  <article class="blog-card" onclick="location.href='/blog.html#post${p.id}'">
+    <div class="blog-thumb ${p.thumb_class}">${p.emoji}</div>
+    <div class="blog-body">
+      <div class="blog-cat">${p.category}${p.sample?'<span class="badge badge-sample" style="margin-left:.4rem">(예)</span>':''}</div>
+      <h3 class="blog-title">${p.title}</h3>
+      <p class="blog-excerpt">${p.excerpt}</p>
+      <div class="blog-meta"><span>${fmtDate(p.created_at)}</span></div>
+    </div>
+  </article>`;
+}
+
+function commCard(c) {
+  const colors = ['#3A7BF7','#10B981','#F59E0B','#7C3AED','#EF4444'];
+  const bg = colors[c.id % colors.length];
+  return `
+  <article class="comm-card" onclick="location.href='/community.html#c${c.id}'" style="cursor:pointer">
+    <div class="comm-head">
+      <div class="avatar" style="background:${bg}">${(c.nickname||'?')[0]}</div>
+      <div>
+        <div class="comm-author">${c.nickname} ${c.verified?'<span class="badge badge-ok">우수 답안</span>':''}</div>
+        <div class="comm-date">${relDate(c.created_at)}</div>
+      </div>
+    </div>
+    <div class="comm-title">${c.title}${c.sample?'<span class="badge badge-sample" style="margin-left:.4rem">(예)</span>':''}</div>
+    <div class="comm-preview">${c.content.slice(0,100)}…</div>
+    <div class="comm-foot">
+      <span class="comm-stat">💬 ${c.comment_count||0}</span>
+      <span class="comm-stat">❤️ ${c.likes||0}</span>
+      ${c.attachment_count?`<span class="comm-stat">📎 ${c.attachment_count}</span>`:''}
+    </div>
+  </article>`;
+}
+
+load();
+</script>
+</body>
+</html>

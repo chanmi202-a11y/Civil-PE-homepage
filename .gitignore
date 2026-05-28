@@ -1,0 +1,27 @@
+# 환경변수 (절대 업로드 금지)
+.env
+
+# 의존성
+node_modules/
+
+# SSL 인증서 (자동 생성됨)
+certs/
+
+# 데이터베이스 (Railway Volume에서 관리)
+pe_study.db
+
+# 업로드 파일
+uploads/*
+!uploads/.gitkeep
+
+# 로그
+server_out.txt
+server_err.txt
+
+# 기타
+*.png
+*.jpg
+*.jpeg
+
+# 개인 공부 자료 (GitHub에 올리지 않음)
+시공기술사/

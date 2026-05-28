@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기출/예상문제 — 토목PE 스터디</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="nav-logo">토목<span class="accent">PE</span> 스터디</a>
+  <ul class="nav-links">
+    <li><a href="/">홈</a></li>
+    <li><a href="/questions.html">기출/예상문제</a></li>
+    <li><a href="/community.html">커뮤니티</a></li>
+    <li><a href="/blog.html">이론 블로그</a></li>
+    <li class="admin-only hidden"><a href="/admin.html" class="nav-admin-link">⚙ 관리자</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="userArea" class="nav-user hidden">
+      <div class="user-chip"><div class="user-avatar">나</div><span id="userName"></span></div>
+      <button id="logoutBtn" class="btn btn-secondary btn-sm">로그아웃</button>
+    </div>
+    <a href="/login.html" id="loginBtn" class="btn btn-secondary btn-sm">로그인</a>
+    <a href="/login.html#signup" id="signupBtn" class="btn btn-primary btn-sm">회원가입</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>📋 기출 / 예상문제</h1>
+    <p>용어설명(10점)과 심화문제(25점)로 구성된 토목시공기술사 예상문제 아카이브</p>
+  </div>
+</div>
+
+<main class="container">
+  <section class="section">
+    <div class="filter-bar">
+      <button class="chip active" data-type="all">전체</button>
+      <button class="chip" data-type="term">용어설명 10점</button>
+      <button class="chip" data-type="advanced">심화문제 25점</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-date="all">전체</button>
+      <button class="tab" data-date="today" id="tabToday">오늘</button>
+      <button class="tab" data-date="week">이번 주</button>
+    </div>
+    <div id="qGrid" class="q-grid">
+      <div class="empty" style="grid-column:1/-1"><div class="icon">⏳</div><p>불러오는 중...</p></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand"><div class="name">토목<span>PE</span> 스터디</div><p>토목시공기술사 문제 풀이 & 이론 정리 플랫폼</p></div>
+      <div class="footer-links"><h4>메뉴</h4><ul><li><a href="/questions.html">기출/예상문제</a></li><li><a href="/community.html">커뮤니티</a></li><li><a href="/blog.html">이론 블로그</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">© 2026 토목PE 스터디.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+<script>
+const now    = new Date();
+const today  = now.toISOString().slice(0,10);
+const mm = String(now.getMonth()+1).padStart(2,'0');
+const dd = String(now.getDate()).padStart(2,'0');
+document.getElementById('tabToday').textContent = `오늘 (${mm}/${dd})`;
+
+let allData  = [];
+let curType  = 'all';
+let curDate  = 'all';
+
+async function loadAll() {
+  try {
+    allData = await API.get('/questions?limit=200', false);
+    render();
+  } catch { document.getElementById('qGrid').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="icon">⚠️</div><p>불러오기 실패</p></div>'; }
+}
+
+function getWeekStart() {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().slice(0,10);
+}
+
+function filtered() {
+  let d = allData;
+  if (curType !== 'all') d = d.filter(q => q.type === curType);
+  if (curDate === 'today') d = d.filter(q => (q.publish_date||'').slice(0,10) === today);
+  if (curDate === 'week')  d = d.filter(q => (q.publish_date||'') >= getWeekStart());
+  return d;
+}
+
+function render() {
+  const qs = filtered();
+  const grid = document.getElementById('qGrid');
+  if (!qs.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="icon">📭</div><p>해당 조건의 문제가 없습니다.</p></div>';
+    return;
+  }
+  grid.innerHTML = qs.map(q => {
+    const isNew  = (q.publish_date||'').slice(0,10) === today;
+    const sample = q.sample ? '<span class="badge badge-sample">(예)</span>' : '';
+    const tags   = (Array.isArray(q.tags) ? q.tags : JSON.parse(q.tags||'[]'));
+    return `
+    <article class="q-card ${q.type}" id="q${q.id}">
+      <div class="q-head">
+        <div class="q-badges">
+          <span class="badge ${q.type==='term'?'badge-term':'badge-adv'}">${q.type==='term'?'용어설명':'심화문제'}</span>
+          ${isNew?'<span class="badge badge-new">NEW</span>':''}
+          ${sample}
+        </div>
+        <span class="q-date">${fmtDate(q.publish_date||q.created_at)}</span>
+      </div>
+      <div class="q-body">
+        <div class="q-text">${q.question}</div>
+        <div class="q-foot">
+          <span class="q-score">${q.score}점</span>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;">${tags.map(t=>`<span class="badge badge-cat">#${t}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div class="q-actions">
+        <button class="btn btn-secondary btn-sm" onclick="toggleAns(${q.id})">답안 보기 / 작성 ▾</button>
+        <a href="/blog.html" class="btn btn-ghost btn-sm">관련 이론 →</a>
+      </div>
+      <div id="ans${q.id}" class="hidden q-answer-area">
+        <div class="write-area" style="margin-bottom:.9rem;">
+          <div class="form-group" style="margin-bottom:.65rem;">
+            <label class="form-label">내 답안 작성</label>
+            <textarea class="form-textarea" id="ansText${q.id}" placeholder="답안을 자유롭게 작성해 보세요. (승인 회원만 제출 가능)" rows="5"></textarea>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="submitAnswer(${q.id})">답안 제출</button>
+            <label style="font-size:.8rem;color:var(--t3);cursor:pointer;">
+              <input type="file" id="ansFile${q.id}" multiple style="display:none" />📎 파일 첨부
+            </label>
+          </div>
+        </div>
+        <div id="ansComm${q.id}">
+          <button class="btn btn-ghost btn-sm" onclick="loadAnswers(${q.id})">커뮤니티 답안 불러오기</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function toggleAns(id) {
+  document.getElementById('ans'+id)?.classList.toggle('hidden');
+}
+
+async function submitAnswer(qId) {
+  if (!requireApprovedCheck()) return;
+  const content = document.getElementById('ansText'+qId).value.trim();
+  if (!content) { toast('답안 내용을 입력해주세요.', 'error'); return; }
+
+  const form = new FormData();
+  form.set('question_id', qId);
+  form.set('title', '문제 '+qId+' 답안');
+  form.set('content', content);
+  const files = document.getElementById('ansFile'+qId).files;
+  for (const f of files) form.append('files', f);
+
+  try {
+    const token = Auth.getToken();
+    const res   = await fetch('/api/community', { method:'POST', headers:{ Authorization:'Bearer '+token }, body: form });
+    const data  = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('답안이 제출되었습니다!', 'success');
+    document.getElementById('ansText'+qId).value = '';
+    loadAnswers(qId);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function requireApprovedCheck() {
+  if (!Auth.getUser()) { showModal('로그인이 필요합니다','답안 제출 전 로그인해주세요.',[{label:'취소'},{label:'로그인',primary:true,fn:()=>location.href='/login.html'}]); return false; }
+  if (!Auth.isApproved()) { showModal('승인 대기 중','관리자 승인 후 제출 가능합니다.',[{label:'확인',primary:true}]); return false; }
+  return true;
+}
+
+async function loadAnswers(qId) {
+  const el = document.getElementById('ansComm'+qId);
+  try {
+    const data = await API.get('/community?qId='+qId, false);
+    if (!data.length) { el.innerHTML = '<p style="font-size:.85rem;color:var(--t3);">아직 제출된 답안이 없습니다.</p>'; return; }
+    const colors = ['#3A7BF7','#10B981','#F59E0B','#7C3AED','#EF4444'];
+    el.innerHTML = `<div style="font-size:.78rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.6rem;">커뮤니티 답안 ${data.length}개</div>`
+      + data.map(c=>`
+      <div class="answer-item">
+        <div class="avatar avatar-sm" style="background:${colors[c.id%colors.length]}">${(c.nickname||'?')[0]}</div>
+        <div>
+          <div class="answer-author">${c.nickname} ${c.verified?'<span class="badge badge-ok">우수</span>':''}</div>
+          <div class="answer-text">${c.content.slice(0,200)}${c.content.length>200?'…':''}</div>
+          <div class="answer-actions">
+            <a href="/community.html#c${c.id}" class="btn-text">자세히 보기 →</a>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch { el.innerHTML = '<p style="font-size:.85rem;color:var(--t3);">불러오기 실패</p>'; }
+}
+
+document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  if (b.dataset.type === 'advanced') b.classList.add('active-adv');
+  curType = b.dataset.type;
+  render();
+}));
+
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  curDate = b.dataset.date;
+  render();
+}));
+
+loadAll();
+if (location.hash) setTimeout(() => document.querySelector(location.hash)?.scrollIntoView({behavior:'smooth',block:'center'}), 600);
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>이론 블로그 — 토목PE 스터디</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="nav-logo">토목<span class="accent">PE</span> 스터디</a>
+  <ul class="nav-links">
+    <li><a href="/">홈</a></li>
+    <li><a href="/questions.html">기출/예상문제</a></li>
+    <li><a href="/community.html">커뮤니티</a></li>
+    <li><a href="/blog.html">이론 블로그</a></li>
+    <li class="admin-only hidden"><a href="/admin.html" class="nav-admin-link">⚙ 관리자</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="userArea" class="nav-user hidden">
+      <div class="user-chip"><div class="user-avatar">나</div><span id="userName"></span></div>
+      <button id="logoutBtn" class="btn btn-secondary btn-sm">로그아웃</button>
+    </div>
+    <a href="/login.html" id="loginBtn" class="btn btn-secondary btn-sm">로그인</a>
+    <a href="/login.html#signup" id="signupBtn" class="btn btn-primary btn-sm">회원가입</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>📖 이론 블로그</h1>
+    <p>토목시공기술사 핵심 이론을 체계적으로 정리한 글 모음 — 각 포스트는 예상문제와 연결됩니다.</p>
+  </div>
+</div>
+
+<main class="container">
+  <section class="section">
+    <div class="filter-bar">
+      <button class="chip active" data-cat="all">전체</button>
+      <button class="chip" data-cat="토공사">토공사</button>
+      <button class="chip" data-cat="콘크리트">콘크리트</button>
+      <button class="chip" data-cat="터널">터널</button>
+      <button class="chip" data-cat="지반공학">지반공학</button>
+      <button class="chip" data-cat="교량">교량</button>
+      <button class="chip" data-cat="PSC">PSC</button>
+    </div>
+    <div id="blogGrid" class="blog-grid">
+      <div class="empty" style="grid-column:1/-1"><div class="icon">⏳</div><p>불러오는 중...</p></div>
+    </div>
+  </section>
+</main>
+
+<!-- 포스트 모달 -->
+<div id="postModal" class="post-modal hidden">
+  <div class="post-modal-inner">
+    <div class="post-modal-header">
+      <div id="pmCat" class="blog-cat"></div>
+      <h1 id="pmTitle" style="font-size:1.5rem;font-weight:800;letter-spacing:-.02em;margin-top:.4rem;"></h1>
+      <div style="display:flex;gap:.75rem;margin-top:.9rem;font-size:.82rem;color:var(--t3);">
+        <span id="pmDate"></span><span id="pmViews"></span>
+      </div>
+    </div>
+    <div class="post-modal-body">
+      <div id="pmBody" class="prose"></div>
+      <div id="pmRelated" style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);"></div>
+      <button onclick="closePost()" class="btn btn-secondary" style="margin-top:1.5rem;">← 목록으로</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand"><div class="name">토목<span>PE</span> 스터디</div><p>토목시공기술사 문제 풀이 & 이론 정리 플랫폼</p></div>
+      <div class="footer-links"><h4>메뉴</h4><ul><li><a href="/questions.html">기출/예상문제</a></li><li><a href="/community.html">커뮤니티</a></li><li><a href="/blog.html">이론 블로그</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">© 2026 토목PE 스터디.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+<script>
+let allPosts = [];
+let curCat   = 'all';
+
+async function loadBlog() {
+  try {
+    allPosts = await API.get('/blog?limit=100', false);
+    render();
+  } catch { document.getElementById('blogGrid').innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="icon">⚠️</div><p>불러오기 실패</p></div>'; }
+}
+
+function render() {
+  const posts = curCat === 'all' ? allPosts : allPosts.filter(p => p.category === curCat);
+  const grid  = document.getElementById('blogGrid');
+  if (!posts.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="icon">📭</div><p>해당 카테고리의 글이 없습니다.</p></div>'; return; }
+  grid.innerHTML = posts.map(p => `
+    <article class="blog-card" id="post${p.id}" onclick="openPost(${p.id})">
+      <div class="blog-thumb ${p.thumb_class}">${p.emoji}</div>
+      <div class="blog-body">
+        <div class="blog-cat">${p.category}${p.sample?'<span class="badge badge-sample" style="margin-left:.4rem">(예)</span>':''}</div>
+        <h2 class="blog-title">${p.title}</h2>
+        <p class="blog-excerpt">${p.excerpt}</p>
+        <div class="blog-meta"><span>${fmtDate(p.created_at)}</span></div>
+      </div>
+    </article>`).join('');
+}
+
+async function openPost(id) {
+  try {
+    const p = await API.get('/blog/'+id, false);
+    document.getElementById('pmCat').innerHTML = p.category + (p.sample ? '<span class="badge badge-sample" style="margin-left:.4rem">(예)</span>' : '');
+    document.getElementById('pmTitle').textContent = p.title;
+    document.getElementById('pmDate').textContent  = fmtDate(p.created_at);
+    document.getElementById('pmBody').innerHTML    = p.content || '<p style="color:var(--t3);">본문이 준비 중입니다.</p>';
+
+    // Related questions
+    const qs = await API.get('/questions?limit=200', false).catch(() => []);
+    // Simple match by category keyword
+    const rel = qs.filter(q => {
+      const tags = Array.isArray(q.tags) ? q.tags : JSON.parse(q.tags||'[]');
+      return tags.some(t => p.category.includes(t) || t.includes(p.category)) ||
+             q.topic.includes(p.category) || p.title.includes(q.topic);
+    }).slice(0, 3);
+
+    document.getElementById('pmRelated').innerHTML = rel.length
+      ? `<div style="font-size:.8rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.65rem;">관련 예상문제</div>`
+        + rel.map(q=>`<a href="/questions.html#q${q.id}" style="display:flex;align-items:center;gap:.55rem;padding:.6rem .85rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:.45rem;">
+          <span class="badge ${q.type==='term'?'badge-term':'badge-adv'}">${q.type==='term'?'용어설명':'심화'}</span>
+          <span style="font-size:.88rem;">${q.question.slice(0,60)}…</span>
+        </a>`).join('')
+      : '';
+
+    document.getElementById('postModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    history.replaceState(null,'','#post'+id);
+  } catch(e) { toast('불러오기 실패: '+e.message,'error'); }
+}
+
+function closePost() {
+  document.getElementById('postModal').classList.add('hidden');
+  document.body.style.overflow = '';
+  history.replaceState(null,'',location.pathname);
+}
+
+document.getElementById('postModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('postModal')) closePost();
+});
+
+document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); curCat = b.dataset.cat; render();
+}));
+
+loadBlog();
+if (location.hash) {
+  const id = parseInt(location.hash.replace('#post',''));
+  if (id) setTimeout(() => openPost(id), 600);
+}
+</script>
+</body>
+</html>

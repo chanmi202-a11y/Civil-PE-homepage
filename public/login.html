@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>로그인 / 회원가입 — 토목PE 스터디</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="nav-logo">토목<span class="accent">PE</span> 스터디</a>
+  <ul class="nav-links">
+    <li><a href="/">홈</a></li>
+    <li><a href="/questions.html">기출/예상문제</a></li>
+    <li><a href="/community.html">커뮤니티</a></li>
+    <li><a href="/blog.html">이론 블로그</a></li>
+  </ul>
+  <div class="nav-right" id="userArea" style="display:none"></div>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="mark">🏗️</div>
+      <h2>토목PE 스터디</h2>
+      <p>토목시공기술사 합격을 위한 스터디 플랫폼</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab" id="tabLogin"  onclick="switchTab('login')">로그인</button>
+      <button class="auth-tab" id="tabSignup" onclick="switchTab('signup')">회원가입</button>
+    </div>
+
+    <!-- 로그인 -->
+    <div class="auth-panel" id="panelLogin">
+      <div id="loginErr" class="alert alert-danger hidden"></div>
+      <form id="loginForm" onsubmit="doLogin(event)">
+        <div class="form-group">
+          <label class="form-label">이메일</label>
+          <input type="email" class="form-input" id="lEmail" placeholder="example@email.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" class="form-input" id="lPw" placeholder="비밀번호를 입력하세요" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:1.4rem;">로그인</button>
+      </form>
+      <p style="text-align:center;margin-top:1.1rem;font-size:.83rem;color:var(--t3);">
+        계정이 없으신가요?
+        <button onclick="switchTab('signup')" style="background:none;border:none;color:var(--primary);font-weight:700;font-size:.83rem;cursor:pointer;">회원가입</button>
+      </p>
+    </div>
+
+    <!-- 회원가입 -->
+    <div class="auth-panel" id="panelSignup">
+      <div class="alert alert-info">
+        📋 가입 후 <strong>관리자 승인</strong>이 완료되어야 답안 업로드, 댓글 작성, 파일 첨부가 가능합니다.
+        승인까지 보통 <strong>1~2일</strong> 소요됩니다.
+      </div>
+      <div id="signupErr" class="alert alert-danger hidden"></div>
+      <div id="signupOk"  class="alert alert-success hidden"></div>
+      <form id="signupForm" onsubmit="doSignup(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">이름</label>
+            <input type="text" class="form-input" id="sName" placeholder="홍길동" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">닉네임</label>
+            <input type="text" class="form-input" id="sNick" placeholder="표시 이름" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">이메일</label>
+          <input type="email" class="form-input" id="sEmail" placeholder="example@email.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" class="form-input" id="sPw" placeholder="8자 이상" required minlength="8" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호 확인</label>
+          <input type="password" class="form-input" id="sPw2" placeholder="비밀번호 재입력" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">가입 동기 <span style="font-weight:400;color:var(--t3);">(선택)</span></label>
+          <textarea class="form-textarea" id="sMemo" placeholder="현재 공부 상황, 토목시공기술사 준비 목적 등을 간략히 적어주세요. (관리자 승인 시 참고됩니다)" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:flex-start;gap:.45rem;cursor:pointer;font-size:.85rem;color:var(--t2);">
+            <input type="checkbox" id="sAgree" required style="margin-top:3px;flex-shrink:0;" />
+            이용약관 및 개인정보 처리방침에 동의합니다.
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg">가입 신청</button>
+      </form>
+      <p style="text-align:center;margin-top:1.1rem;font-size:.83rem;color:var(--t3);">
+        이미 계정이 있으신가요?
+        <button onclick="switchTab('login')" style="background:none;border:none;color:var(--primary);font-weight:700;font-size:.83rem;cursor:pointer;">로그인</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="main.js"></script>
+<script>
+// 이미 로그인된 경우 리디렉션
+if (Auth.getUser()) location.href = '/';
+
+function switchTab(tab) {
+  document.getElementById('tabLogin').classList.toggle('active',  tab==='login');
+  document.getElementById('tabSignup').classList.toggle('active', tab==='signup');
+  document.getElementById('panelLogin').classList.toggle('show',  tab==='login');
+  document.getElementById('panelSignup').classList.toggle('show', tab==='signup');
+}
+switchTab(location.hash === '#signup' ? 'signup' : 'login');
+
+async function doLogin(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('loginErr');
+  errEl.classList.add('hidden');
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true; btn.textContent = '로그인 중...';
+  try {
+    const d = await API.post('/auth/login', {
+      email:    document.getElementById('lEmail').value,
+      password: document.getElementById('lPw').value,
+    }, false);
+    Auth.save(d);
+    toast('환영합니다, ' + (d.user.nickname||d.user.name) + '님!', 'success');
+    setTimeout(() => location.href = '/', 600);
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = '로그인';
+  }
+}
+
+async function doSignup(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('signupErr');
+  const okEl  = document.getElementById('signupOk');
+  errEl.classList.add('hidden'); okEl.classList.add('hidden');
+
+  const pw  = document.getElementById('sPw').value;
+  const pw2 = document.getElementById('sPw2').value;
+  if (pw !== pw2) { errEl.textContent='비밀번호가 일치하지 않습니다.'; errEl.classList.remove('hidden'); return; }
+
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled=true; btn.textContent='처리 중...';
+  try {
+    const d = await API.post('/auth/register', {
+      email:    document.getElementById('sEmail').value,
+      password: pw,
+      name:     document.getElementById('sName').value,
+      nickname: document.getElementById('sNick').value,
+      memo:     document.getElementById('sMemo').value,
+    }, false);
+    okEl.innerHTML = `✅ <strong>${document.getElementById('sName').value}</strong>님, 가입 신청이 완료되었습니다!<br>관리자 승인 후 이용 가능합니다. (1~2일 소요)`;
+    okEl.classList.remove('hidden');
+    e.target.reset();
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+  btn.disabled=false; btn.textContent='가입 신청';
+}
+</script>
+</body>
+</html>

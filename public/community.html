@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>커뮤니티 — 토목PE 스터디</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="nav-logo">토목<span class="accent">PE</span> 스터디</a>
+  <ul class="nav-links">
+    <li><a href="/">홈</a></li>
+    <li><a href="/questions.html">기출/예상문제</a></li>
+    <li><a href="/community.html">커뮤니티</a></li>
+    <li><a href="/blog.html">이론 블로그</a></li>
+    <li class="admin-only hidden"><a href="/admin.html" class="nav-admin-link">⚙ 관리자</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="userArea" class="nav-user hidden">
+      <div class="user-chip"><div class="user-avatar">나</div><span id="userName"></span></div>
+      <button id="logoutBtn" class="btn btn-secondary btn-sm">로그아웃</button>
+    </div>
+    <a href="/login.html" id="loginBtn" class="btn btn-secondary btn-sm">로그인</a>
+    <a href="/login.html#signup" id="signupBtn" class="btn btn-primary btn-sm">회원가입</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>💬 스터디 커뮤니티</h1>
+    <p>승인된 회원이 답안을 업로드하고, 댓글·자료 공유로 함께 공부하는 공간입니다.</p>
+  </div>
+</div>
+
+<main class="container">
+  <section class="section">
+    <div class="alert alert-warning">
+      🔒 <strong>가입 후 관리자 승인</strong>을 받은 회원만 답안 업로드, 댓글 작성, 파일 첨부가 가능합니다.
+      <a href="/login.html#signup" style="font-weight:700;color:var(--amber-c);text-decoration:underline;margin-left:.3rem;">회원가입 →</a>
+    </div>
+
+    <div class="filter-bar" style="margin-top:1rem;">
+      <button class="chip active" data-type="all">전체</button>
+      <button class="chip" data-type="term">용어설명 답안</button>
+      <button class="chip" data-type="advanced">심화문제 답안</button>
+    </div>
+
+    <div id="commFull" class="comm-list">
+      <div class="empty"><div class="icon">⏳</div><p>불러오는 중...</p></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand"><div class="name">토목<span>PE</span> 스터디</div><p>토목시공기술사 문제 풀이 & 이론 정리 플랫폼</p></div>
+      <div class="footer-links"><h4>메뉴</h4><ul><li><a href="/questions.html">기출/예상문제</a></li><li><a href="/community.html">커뮤니티</a></li><li><a href="/blog.html">이론 블로그</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">© 2026 토목PE 스터디.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+<script>
+const COLORS = ['#3A7BF7','#10B981','#F59E0B','#7C3AED','#EF4444'];
+let allData = [];
+let curType = 'all';
+
+async function loadComm() {
+  try {
+    allData = await API.get('/community?limit=100', false);
+    render();
+  } catch { document.getElementById('commFull').innerHTML = '<div class="empty"><div class="icon">⚠️</div><p>불러오기 실패</p></div>'; }
+}
+
+function render() {
+  const list = document.getElementById('commFull');
+  let data = allData;
+  // 타입 필터는 question.type이 필요 — 현재 community에서 type을 반환하지 않으므로 전체만 구분
+  if (!data.length) { list.innerHTML = '<div class="empty"><div class="icon">📭</div><p>등록된 답안이 없습니다.</p></div>'; return; }
+
+  list.innerHTML = data.map(c => {
+    const bg = COLORS[c.id % COLORS.length];
+    return `
+    <article class="comm-card" id="c${c.id}">
+      <div class="comm-head">
+        <div class="avatar" style="background:${bg}">${(c.nickname||'?')[0]}</div>
+        <div style="flex:1;">
+          <div class="comm-author">${c.nickname} ${c.verified?'<span class="badge badge-ok">우수 답안</span>':''} ${c.sample?'<span class="badge badge-sample">(예)</span>':''}</div>
+          <div class="comm-date">${relDate(c.created_at)}</div>
+        </div>
+      </div>
+      <div class="comm-title">${c.title}</div>
+      <div class="comm-preview">${c.content.slice(0,140)}${c.content.length>140?'…':''}</div>
+      <div class="comm-foot">
+        <span class="comm-stat">💬 ${c.comment_count||0}</span>
+        <span class="comm-stat">❤️ ${c.likes||0}</span>
+        ${c.attachment_count?`<span class="comm-stat">📎 ${c.attachment_count}</span>`:''}
+        <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="toggleDetail(${c.id})">
+          댓글 보기 ▾
+        </button>
+      </div>
+
+      <div id="det${c.id}" class="hidden" style="border-top:1px solid var(--border);padding-top:.9rem;margin-top:.5rem;">
+        <div id="cmts${c.id}"><button class="btn btn-ghost btn-sm" onclick="loadCmts(${c.id})">댓글 불러오기</button></div>
+        <div class="write-area" style="margin-top:.75rem;">
+          <div class="form-group" style="margin-bottom:.6rem;">
+            <textarea class="form-textarea" id="cmt${c.id}" placeholder="댓글을 입력하세요. (승인 회원만 작성 가능)" rows="3"></textarea>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="submitCmt(${c.id})">댓글 등록</button>
+            <label style="font-size:.8rem;color:var(--t3);cursor:pointer;">
+              <input type="file" id="cmtFile${c.id}" multiple style="display:none"/>📎 자료 첨부
+            </label>
+            <button class="btn btn-ghost btn-sm" onclick="likeAnswer(${c.id})">❤️ 좋아요</button>
+          </div>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  document.getElementById('det'+id)?.classList.toggle('hidden');
+}
+
+async function loadCmts(aId) {
+  const el = document.getElementById('cmts'+aId);
+  try {
+    const cmts = await API.get('/community/'+aId+'/comments', false);
+    if (!cmts.length) { el.innerHTML = '<p style="font-size:.83rem;color:var(--t3);padding:.5rem 0;">댓글이 없습니다.</p>'; return; }
+    el.innerHTML = cmts.map(c=>`
+      <div class="answer-item">
+        <div class="avatar avatar-sm" style="background:${COLORS[c.id%COLORS.length]}">${(c.nickname||'?')[0]}</div>
+        <div>
+          <div class="answer-author">${c.nickname} <span style="font-weight:400;font-size:.75rem;color:var(--t3)">${relDate(c.created_at)}</span></div>
+          <div class="answer-text">${c.content}</div>
+          ${Auth.getUser()&&(Auth.getUser().nickname===c.nickname||Auth.isAdmin())
+            ?`<div class="answer-actions"><button class="btn-text" onclick="deleteCmt(${aId},${c.id})">삭제</button></div>`:''}
+        </div>
+      </div>`).join('');
+  } catch { el.innerHTML = '<p style="font-size:.83rem;color:var(--t3);">불러오기 실패</p>'; }
+}
+
+async function submitCmt(aId) {
+  if (!Auth.isApproved()) { requireApproved(); return; }
+  const content = document.getElementById('cmt'+aId).value.trim();
+  if (!content) { toast('댓글 내용을 입력하세요.','error'); return; }
+
+  const form = new FormData();
+  form.set('content', content);
+  const files = document.getElementById('cmtFile'+aId).files;
+  for (const f of files) form.append('files', f);
+
+  try {
+    const res = await fetch('/api/community/'+aId+'/comments',{method:'POST',headers:{Authorization:'Bearer '+Auth.getToken()},body:form});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    document.getElementById('cmt'+aId).value = '';
+    toast('댓글이 등록되었습니다.','success');
+    loadCmts(aId);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteCmt(aId, cId) {
+  if (!confirm('댓글을 삭제하시겠습니까?')) return;
+  try { await API.delete('/community/'+aId+'/comments/'+cId); toast('삭제되었습니다.','success'); loadCmts(aId); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function likeAnswer(id) {
+  if (!Auth.isApproved()) { requireApproved(); return; }
+  try { const d = await API.post('/community/'+id+'/like'); toast(d.liked?'좋아요!':'좋아요 취소','info'); loadComm(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active','active-adv'));
+  b.classList.add('active');
+  if (b.dataset.type==='advanced') b.classList.add('active-adv');
+  curType = b.dataset.type;
+  render();
+}));
+
+loadComm();
+if (location.hash) setTimeout(()=>document.querySelector(location.hash)?.scrollIntoView({behavior:'smooth'}), 600);
+</script>
+</body>
+</html>

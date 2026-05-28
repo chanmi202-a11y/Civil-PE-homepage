@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>관리자 패널 — 토목PE 스터디</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="nav-logo">토목<span class="accent">PE</span> 스터디</a>
+  <ul class="nav-links">
+    <li><a href="/">홈</a></li>
+    <li><a href="/questions.html">기출/예상문제</a></li>
+    <li><a href="/community.html">커뮤니티</a></li>
+    <li><a href="/blog.html">이론 블로그</a></li>
+    <li><a href="/admin.html" class="nav-admin-link">⚙ 관리자</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="userArea" class="nav-user hidden">
+      <div class="user-chip"><div class="user-avatar">관</div><span id="userName"></span></div>
+      <button id="logoutBtn" class="btn btn-secondary btn-sm">로그아웃</button>
+    </div>
+    <a href="/login.html" id="loginBtn" class="btn btn-secondary btn-sm">로그인</a>
+    <a href="/login.html#signup" id="signupBtn" class="btn btn-primary btn-sm hidden">회원가입</a>
+  </div>
+</nav>
+
+<div class="admin-wrap">
+  <!-- 사이드바 -->
+  <aside class="admin-sidebar">
+    <h3>대시보드</h3>
+    <button class="admin-nav-item active" onclick="show('dash')">📊 현황 개요</button>
+    <h3 style="margin-top:1.25rem;">콘텐츠 관리</h3>
+    <button class="admin-nav-item" onclick="show('qDrafts')">📋 문제 관리</button>
+    <button class="admin-nav-item" onclick="show('qNew')">✏️ 문제 작성</button>
+    <button class="admin-nav-item" onclick="show('bDrafts')">📖 블로그 관리</button>
+    <button class="admin-nav-item" onclick="show('bNew')">✏️ 블로그 작성</button>
+    <h3 style="margin-top:1.25rem;">회원 / 커뮤니티</h3>
+    <button class="admin-nav-item" onclick="show('users')">👥 회원 관리</button>
+    <button class="admin-nav-item" onclick="show('pending')">⏳ 승인 대기</button>
+    <button class="admin-nav-item" onclick="show('commMod')">💬 커뮤니티 관리</button>
+  </aside>
+
+  <!-- 메인 -->
+  <main class="admin-main">
+
+    <!-- 현황 개요 -->
+    <div id="p-dash" class="admin-panel show">
+      <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:1.25rem;">📊 현황 개요</h2>
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="num">-</div><div class="lbl">전체 회원</div></div>
+        <div class="stat-card"><div class="num">-</div><div class="lbl">승인 대기</div></div>
+        <div class="stat-card"><div class="num">-</div><div class="lbl">발행된 문제</div></div>
+        <div class="stat-card"><div class="num">-</div><div class="lbl">초안 문제</div></div>
+        <div class="stat-card"><div class="num">-</div><div class="lbl">발행된 블로그</div></div>
+        <div class="stat-card"><div class="num">-</div><div class="lbl">커뮤니티 답안</div></div>
+      </div>
+      <div class="alert alert-info">💡 좌측 메뉴에서 문제 / 블로그를 <strong>작성 → 저장 → 발행</strong> 순서로 운영하세요. 발행 전까지 사용자에게 보이지 않습니다.</div>
+    </div>
+
+    <!-- 문제 관리 -->
+    <div id="p-qDrafts" class="admin-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <h2 style="font-size:1.2rem;font-weight:800;">📋 문제 관리</h2>
+        <div style="display:flex;gap:.5rem;">
+          <button class="chip active" id="qShowAll" onclick="loadQDrafts('all')">전체</button>
+          <button class="chip" onclick="loadQDrafts('draft')">초안</button>
+          <button class="chip" onclick="loadQDrafts('published')">발행됨</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>유형</th><th>주제</th><th>상태</th><th>발행일</th><th>관리</th></tr></thead>
+          <tbody id="qDraftsTbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 문제 작성 -->
+    <div id="p-qNew" class="admin-panel">
+      <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:1.25rem;">✏️ 문제 작성</h2>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;max-width:640px;">
+        <div id="qSaveMsg" class="hidden" style="margin-bottom:1rem;"></div>
+        <input type="hidden" id="qEditId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">문제 유형</label>
+            <select class="form-select" id="qType">
+              <option value="term">용어설명 (10점)</option>
+              <option value="advanced">심화문제 (25점)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">배점</label>
+            <input type="number" class="form-input" id="qScore" value="10" min="1" max="100" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">주제 (간략)</label>
+          <input type="text" class="form-input" id="qTopic" placeholder="예: 흙막이 공법" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">문제 내용</label>
+          <textarea class="form-textarea" id="qQuestion" rows="5" placeholder="문제를 입력하세요."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">태그 (쉼표 구분)</label>
+          <input type="text" class="form-input" id="qTags" placeholder="토공사, 가시설" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">발행 날짜 (비워두면 즉시 발행)</label>
+          <input type="date" class="form-input" id="qDate" />
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="saveQuestion(false)">초안 저장</button>
+          <button class="btn btn-primary"   onclick="saveQuestion(true)">저장 후 발행</button>
+          <button class="btn btn-ghost"     onclick="resetQForm()">초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 블로그 관리 -->
+    <div id="p-bDrafts" class="admin-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <h2 style="font-size:1.2rem;font-weight:800;">📖 블로그 관리</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>날짜</th><th>관리</th></tr></thead>
+          <tbody id="bDraftsTbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 블로그 작성 -->
+    <div id="p-bNew" class="admin-panel">
+      <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:1.25rem;">✏️ 블로그 작성</h2>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;max-width:740px;">
+        <div id="bSaveMsg" class="hidden" style="margin-bottom:1rem;"></div>
+        <input type="hidden" id="bEditId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">카테고리</label>
+            <select class="form-select" id="bCat">
+              <option>토공사</option><option>콘크리트</option><option>터널</option>
+              <option>지반공학</option><option>교량</option><option>PSC</option><option>기타</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">썸네일 색상</label>
+            <select class="form-select" id="bThumb">
+              <option value="c1">파랑</option><option value="c2">초록</option><option value="c3">보라</option>
+              <option value="c4">노랑</option><option value="c5">하늘</option><option value="c6">빨강</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">이모지</label>
+            <input type="text" class="form-input" id="bEmoji" value="📖" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">제목</label>
+          <input type="text" class="form-input" id="bTitle" placeholder="포스트 제목을 입력하세요" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">요약 (목록에 표시)</label>
+          <textarea class="form-textarea" id="bExcerpt" rows="2" placeholder="포스트를 한두 문장으로 요약하세요"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">본문 (HTML 허용)</label>
+          <textarea class="form-textarea" id="bContent" rows="14" placeholder="<h2>소제목</h2><p>내용을 입력하세요.</p>"></textarea>
+          <div class="form-hint">h2, h3, p, ul, li, strong, .tip 클래스 사용 가능</div>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="saveBlog(false)">초안 저장</button>
+          <button class="btn btn-primary"   onclick="saveBlog(true)">저장 후 발행</button>
+          <button class="btn btn-ghost"     onclick="resetBForm()">초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 회원 관리 -->
+    <div id="p-users" class="admin-panel">
+      <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:1.25rem;">👥 전체 회원 관리</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>이름</th><th>닉네임</th><th>이메일</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
+          <tbody id="usersTbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 승인 대기 -->
+    <div id="p-pending" class="admin-panel">
+      <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:1.25rem;">⏳ 승인 대기 회원</h2>
+      <div id="pendingAlert" class="alert alert-info hidden" style="margin-bottom:1rem;"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>이름</th><th>닉네임</th><th>이메일</th><th>가입 동기</th><th>가입일</th><th>처리</th></tr></thead>
+          <tbody id="pendingTbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 커뮤니티 관리 -->
+    <div id="p-commMod" class="admin-panel">
+      <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:1.25rem;">💬 커뮤니티 관리</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>작성자</th><th>제목</th><th>좋아요</th><th>댓글</th><th>우수</th><th>관리</th></tr></thead>
+          <tbody id="commModTbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="main.js"></script>
+<script>
+// ── 관리자 전용 페이지 — 비관리자 접근 차단 ──
+document.addEventListener('DOMContentLoaded', () => {
+  if (!Auth.isAdmin()) {
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1rem;">
+      <div style="font-size:3rem;">🔒</div>
+      <h2>접근 권한이 없습니다</h2>
+      <p style="color:var(--t3);">관리자만 이용할 수 있는 페이지입니다.</p>
+      <a href="/" class="btn btn-primary">홈으로 돌아가기</a>
+    </div>`;
+    return;
+  }
+  loadDash();
+});
+
+function show(name) {
+  document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('show'));
+  document.querySelectorAll('.admin-nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('p-'+name).classList.add('show');
+  event.currentTarget.classList.add('active');
+
+  const loaders = { qDrafts: loadQDrafts, bDrafts: loadBDrafts, users: loadUsers, pending: loadPending, commMod: loadCommMod };
+  loaders[name]?.();
+}
+
+// ── 대시보드 ──
+async function loadDash() {
+  try {
+    const s = await API.get('/admin/stats');
+    const nums = [s.users.total, s.users.pending, s.questions.published, s.questions.drafts, s.blog.published, s.community.answers];
+    document.querySelectorAll('#statGrid .num').forEach((el,i) => el.textContent = nums[i]);
+  } catch {}
+}
+
+// ── 문제 관리 ──
+let qFilter = 'all';
+async function loadQDrafts(filter) {
+  qFilter = filter || qFilter;
+  try {
+    const rows = await API.get('/questions/drafts');
+    let data = rows;
+    if (qFilter === 'draft')     data = rows.filter(r => !r.published);
+    if (qFilter === 'published') data = rows.filter(r =>  r.published);
+
+    document.getElementById('qDraftsTbl').innerHTML = data.length
+      ? data.map(q => `
+        <tr>
+          <td>${q.id}</td>
+          <td><span class="badge ${q.type==='term'?'badge-term':'badge-adv'}">${q.type==='term'?'용어설명':'심화'}</span></td>
+          <td>${q.topic}${q.sample?'<span class="badge badge-sample" style="margin-left:.3rem">(예)</span>':''}</td>
+          <td>${q.published?'<span class="badge badge-ok">발행됨</span>':'<span class="badge badge-pending">초안</span>'}</td>
+          <td>${q.publish_date||'-'}</td>
+          <td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="editQ(${q.id})">수정</button>
+            ${q.published
+              ? `<button class="btn btn-secondary btn-sm" onclick="unpubQ(${q.id})">발행취소</button>`
+              : `<button class="btn btn-primary btn-sm" onclick="pubQ(${q.id})">발행</button>`}
+            <button class="btn btn-danger btn-sm" onclick="delQ(${q.id})">삭제</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:var(--t3);">문제가 없습니다.</td></tr>';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function saveQuestion(publish) {
+  const id       = document.getElementById('qEditId').value;
+  const tags     = document.getElementById('qTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const body     = {
+    type:         document.getElementById('qType').value,
+    score:        Number(document.getElementById('qScore').value),
+    topic:        document.getElementById('qTopic').value,
+    question:     document.getElementById('qQuestion').value,
+    tags,
+    publish_date: document.getElementById('qDate').value || null,
+  };
+  const msgEl = document.getElementById('qSaveMsg');
+  try {
+    let r;
+    if (id) {
+      await API.put('/questions/'+id, body);
+      r = { id: Number(id), message: '수정되었습니다.' };
+    } else {
+      r = await API.post('/questions', body);
+    }
+    if (publish) await API.post('/questions/'+r.id+'/publish', { publish_date: body.publish_date });
+    msgEl.className = 'alert alert-success';
+    msgEl.textContent = publish ? '문제가 발행되었습니다!' : '초안으로 저장되었습니다.';
+    msgEl.classList.remove('hidden');
+    resetQForm();
+  } catch(e) {
+    msgEl.className = 'alert alert-danger';
+    msgEl.textContent = e.message;
+    msgEl.classList.remove('hidden');
+  }
+}
+
+async function editQ(id) {
+  try {
+    const q = await API.get('/questions/'+id);
+    show('qNew');
+    document.getElementById('qEditId').value   = q.id;
+    document.getElementById('qType').value     = q.type;
+    document.getElementById('qScore').value    = q.score;
+    document.getElementById('qTopic').value    = q.topic;
+    document.getElementById('qQuestion').value = q.question;
+    document.getElementById('qTags').value     = (Array.isArray(q.tags)?q.tags:JSON.parse(q.tags||'[]')).join(', ');
+    document.getElementById('qDate').value     = q.publish_date || '';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function pubQ(id)   { try { await API.post('/questions/'+id+'/publish'); toast('발행되었습니다.','success'); loadQDrafts(); } catch(e) { toast(e.message,'error'); } }
+async function unpubQ(id) { try { await API.post('/questions/'+id+'/unpublish'); toast('발행이 취소되었습니다.','info'); loadQDrafts(); } catch(e) { toast(e.message,'error'); } }
+async function delQ(id)   {
+  if (!confirm('문제를 삭제하시겠습니까?')) return;
+  try { await API.delete('/questions/'+id); toast('삭제되었습니다.','success'); loadQDrafts(); } catch(e) { toast(e.message,'error'); }
+}
+
+function resetQForm() {
+  document.getElementById('qEditId').value = '';
+  document.getElementById('qType').value     = 'term';
+  document.getElementById('qScore').value    = '10';
+  document.getElementById('qTopic').value    = '';
+  document.getElementById('qQuestion').value = '';
+  document.getElementById('qTags').value     = '';
+  document.getElementById('qDate').value     = '';
+}
+
+// ── 블로그 관리 ──
+async function loadBDrafts() {
+  try {
+    const rows = await API.get('/blog/drafts');
+    document.getElementById('bDraftsTbl').innerHTML = rows.length
+      ? rows.map(p => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.category}${p.sample?'<span class="badge badge-sample" style="margin-left:.3rem">(예)</span>':''}</td>
+          <td>${p.title.slice(0,40)}${p.title.length>40?'…':''}</td>
+          <td>${p.published?'<span class="badge badge-ok">발행됨</span>':'<span class="badge badge-pending">초안</span>'}</td>
+          <td>${fmtDate(p.created_at)}</td>
+          <td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="editB(${p.id})">수정</button>
+            ${p.published
+              ? `<button class="btn btn-secondary btn-sm" onclick="unpubB(${p.id})">발행취소</button>`
+              : `<button class="btn btn-primary btn-sm" onclick="pubB(${p.id})">발행</button>`}
+            <button class="btn btn-danger btn-sm" onclick="delB(${p.id})">삭제</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:var(--t3);">포스트가 없습니다.</td></tr>';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function saveBlog(publish) {
+  const id    = document.getElementById('bEditId').value;
+  const body  = {
+    category:    document.getElementById('bCat').value,
+    thumb_class: document.getElementById('bThumb').value,
+    emoji:       document.getElementById('bEmoji').value,
+    title:       document.getElementById('bTitle').value,
+    excerpt:     document.getElementById('bExcerpt').value,
+    content:     document.getElementById('bContent').value,
+  };
+  const msgEl = document.getElementById('bSaveMsg');
+  try {
+    let r;
+    if (id) { await API.put('/blog/'+id, body); r = { id: Number(id) }; }
+    else r = await API.post('/blog', body);
+    if (publish) await API.post('/blog/'+r.id+'/publish');
+    msgEl.className = 'alert alert-success';
+    msgEl.textContent = publish ? '블로그 포스트가 발행되었습니다!' : '초안으로 저장되었습니다.';
+    msgEl.classList.remove('hidden');
+    resetBForm();
+  } catch(e) {
+    msgEl.className = 'alert alert-danger';
+    msgEl.textContent = e.message;
+    msgEl.classList.remove('hidden');
+  }
+}
+
+async function editB(id) {
+  try {
+    const p = await API.get('/blog/'+id+'/preview');
+    show('bNew');
+    document.getElementById('bEditId').value   = p.id;
+    document.getElementById('bCat').value      = p.category;
+    document.getElementById('bThumb').value    = p.thumb_class;
+    document.getElementById('bEmoji').value    = p.emoji;
+    document.getElementById('bTitle').value    = p.title;
+    document.getElementById('bExcerpt').value  = p.excerpt;
+    document.getElementById('bContent').value  = p.content;
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function pubB(id)   { try { await API.post('/blog/'+id+'/publish'); toast('발행되었습니다.','success'); loadBDrafts(); } catch(e) { toast(e.message,'error'); } }
+async function unpubB(id) { try { await API.post('/blog/'+id+'/unpublish'); toast('발행 취소.','info'); loadBDrafts(); } catch(e) { toast(e.message,'error'); } }
+async function delB(id)   { if (!confirm('삭제하시겠습니까?')) return; try { await API.delete('/blog/'+id); toast('삭제.','success'); loadBDrafts(); } catch(e) { toast(e.message,'error'); } }
+
+function resetBForm() {
+  document.getElementById('bEditId').value  = '';
+  ['bCat','bThumb','bEmoji','bTitle','bExcerpt','bContent'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName==='SELECT') el.selectedIndex=0;
+    else el.value = id==='bEmoji'?'📖':'';
+  });
+}
+
+// ── 회원 관리 ──
+async function loadUsers() {
+  try {
+    const rows = await API.get('/admin/users');
+    document.getElementById('usersTbl').innerHTML = rows.length
+      ? rows.map(u => {
+          const roleLabel = { admin:'관리자', approved:'승인', pending:'대기', rejected:'거절' };
+          const roleBadge = { admin:'badge-admin', approved:'badge-ok', pending:'badge-pending', rejected:'badge badge-cat' };
+          return `
+          <tr>
+            <td>${u.id}</td>
+            <td>${u.name}</td>
+            <td>${u.nickname}</td>
+            <td>${u.email}</td>
+            <td><span class="badge ${roleBadge[u.role]||''}">${roleLabel[u.role]||u.role}</span></td>
+            <td>${fmtDate(u.created_at)}</td>
+            <td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap;">
+              ${u.role==='pending'?`<button class="btn btn-primary btn-sm" onclick="approveUser(${u.id})">승인</button><button class="btn btn-secondary btn-sm" onclick="rejectUser(${u.id})">거절</button>`:''}
+              ${u.role==='approved'?`<button class="btn btn-secondary btn-sm" onclick="changeRole(${u.id},'pending')">대기로 변경</button>`:''}
+              ${u.role!=='admin'?`<button class="btn btn-danger btn-sm" onclick="delUser(${u.id})">삭제</button>`:''}
+            </td>
+          </tr>`;}).join('')
+      : '<tr><td colspan="7" style="text-align:center;color:var(--t3);">회원이 없습니다.</td></tr>';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function loadPending() {
+  try {
+    const rows = await API.get('/admin/users?role=pending');
+    const alertEl = document.getElementById('pendingAlert');
+    if (rows.length) {
+      alertEl.textContent = `승인 대기 회원이 ${rows.length}명 있습니다.`;
+      alertEl.classList.remove('hidden');
+    } else { alertEl.classList.add('hidden'); }
+
+    document.getElementById('pendingTbl').innerHTML = rows.length
+      ? rows.map(u => `
+        <tr>
+          <td>${u.name}</td>
+          <td>${u.nickname}</td>
+          <td>${u.email}</td>
+          <td style="max-width:200px;word-break:break-all;">${u.memo||'-'}</td>
+          <td>${fmtDate(u.created_at)}</td>
+          <td style="white-space:nowrap;display:flex;gap:.35rem;">
+            <button class="btn btn-primary btn-sm"    onclick="approveUser(${u.id}, true)">승인</button>
+            <button class="btn btn-secondary btn-sm"  onclick="rejectUser(${u.id}, true)">거절</button>
+            <button class="btn btn-danger btn-sm"     onclick="delUser(${u.id}, true)">삭제</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:var(--t3);">대기 중인 회원이 없습니다.</td></tr>';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function approveUser(id, fromPending) { try { await API.put('/admin/users/'+id+'/approve'); toast('승인되었습니다.','success'); fromPending?loadPending():loadUsers(); } catch(e){toast(e.message,'error');} }
+async function rejectUser(id, fromPending)  { try { await API.put('/admin/users/'+id+'/reject');  toast('거절되었습니다.','info');    fromPending?loadPending():loadUsers(); } catch(e){toast(e.message,'error');} }
+async function changeRole(id, role)         { try { await API.put('/admin/users/'+id+'/role', {role}); toast('변경되었습니다.','info'); loadUsers(); } catch(e){toast(e.message,'error');} }
+async function delUser(id, fromPending) {
+  if (!confirm('회원을 삭제하시겠습니까? 해당 회원의 답안과 댓글도 함께 삭제됩니다.')) return;
+  try { await API.delete('/admin/users/'+id); toast('삭제되었습니다.','success'); fromPending?loadPending():loadUsers(); } catch(e){toast(e.message,'error');}
+}
+
+// ── 커뮤니티 관리 ──
+async function loadCommMod() {
+  try {
+    const rows = await API.get('/community?limit=100');
+    document.getElementById('commModTbl').innerHTML = rows.length
+      ? rows.map(c => `
+        <tr>
+          <td>${c.id}</td>
+          <td>${c.nickname}${c.sample?'<span class="badge badge-sample" style="margin-left:.3rem">(예)</span>':''}</td>
+          <td>${c.title.slice(0,40)}${c.title.length>40?'…':''}</td>
+          <td>${c.likes}</td>
+          <td>${c.comment_count}</td>
+          <td>${c.verified?'<span class="badge badge-ok">우수</span>':'-'}</td>
+          <td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="verifyComm(${c.id})">${c.verified?'우수 취소':'우수 선정'}</button>
+            <button class="btn btn-danger btn-sm" onclick="delComm(${c.id})">삭제</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="7" style="text-align:center;color:var(--t3);">답안이 없습니다.</td></tr>';
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function verifyComm(id) { try { const d=await API.post('/community/'+id+'/verify'); toast(d.message,'success'); loadCommMod(); } catch(e){toast(e.message,'error');} }
+async function delComm(id)    { if (!confirm('삭제하시겠습니까?')) return; try { await API.delete('/admin/community/'+id); toast('삭제.','success'); loadCommMod(); } catch(e){toast(e.message,'error');} }
+</script>
+</body>
+</html>
